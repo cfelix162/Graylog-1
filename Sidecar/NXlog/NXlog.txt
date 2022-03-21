@@ -1,0 +1,62 @@
+define ROOT C:\Program Files (x86)\nxlog
+
+Moduledir %ROOT%\modules
+CacheDir %ROOT%\data
+Pidfile %ROOT%\data\nxlog.pid
+SpoolDir %ROOT%\data
+LogFile %ROOT%\data\nxlog.log
+
+<Extension gelf>
+	Module 		xm_gelf
+</Extension>
+
+<Extension fileop>
+	Module 		xm_fileop
+</Extension>
+
+
+#Create the parse rule for IIS logs. You can copy these from the header of the IIS log file.
+<Extension w3c>
+    Module 			xm_csv
+    Fields  $date, $time, $s_sitename, $s_computername, $s_ip, $cs_method, $cs_uri_stem, $cs_uri_query, $s_port, $cs_username, $c_ip, $cs(User_Agent), $cs(Cookie), $cs(Referer), $cs_host, $sc_status, $sc_substatus, $sc_win32_status, $sc_bytes, $cs_bytes, $time_taken
+    FieldTypes  string, string, string, string, string, string, string, string, string, string, string, string, string, string, string, string, string, string, string, string, string
+    Delimiter 		' '
+    EscapeControl 	FALSE
+    UndefValue 		-
+</Extension>
+
+ <Extension json>
+    Module      xm_json
+</Extension>
+
+<Input iis>
+    Module    	im_file
+    File    	"C:\inetpub\logs\LogFiles\W3SVC2\u_ex*"
+    ReadFromLast    FALSE
+
+	Exec		if $raw_event =~ /^#/ drop();                    \
+                else                                             \
+                {                                                \
+                    w3c->parse_csv();                            \
+                    $EventTime = strftime($EventTime, "%Y-%m-%dT%H:%M:%SZ"); \
+                    $SourceName = "IIS";    					 \
+                    $Message = to_json();    					 \
+                }
+</Input>
+
+
+<Output graylog>
+    Module      om_udp
+    Host        10.0.2.63
+    Port        12206
+    Exec        to_json();
+    OutputType	GELF
+
+    #Use the following line for debugging (uncomment the fileop extension above as well)
+	Exec file_write("C:\\Program Files (x86)\\nxlog\\data\\nxlog_output.log", $raw_event);
+</Output>
+
+
+<Route iis-to-graylog>
+	Path		iis => graylog
+</Route>
