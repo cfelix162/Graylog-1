@@ -1,0 +1,17 @@
+# Needed for Graylog
+fields_under_root: true
+fields.collector_node_id: ${sidecar.nodeName}
+fields.gl2_source_collector: ${sidecar.nodeId}
+
+output.logstash:
+   hosts: ["10.0.2.63:5044"]
+path:
+  data: C:\Program Files\Graylog\sidecar\cache\winlogbeat\data
+  logs: C:\Program Files\Graylog\sidecar\logs
+tags:
+ - windows
+winlogbeat:
+  event_logs:
+   - name: Application
+   - name: System
+   - name: Security
